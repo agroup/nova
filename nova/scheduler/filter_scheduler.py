@@ -64,6 +64,8 @@ class FilterScheduler(driver.Scheduler):
             'ServerGroupAffinityFilter')
         self._supports_anti_affinity = scheduler_utils.validate_filter(
             'ServerGroupAntiAffinityFilter')
+        self._supports_server_groups = any((self._supports_affinity,
+                                            self._supports_anti_affinity))
 
     # NOTE(alaski): Remove this method when the scheduler rpc interface is
     # bumped to 4.x as it is no longer used.
@@ -207,31 +209,46 @@ class FilterScheduler(driver.Scheduler):
         filter_properties['project_id'] = project_id
         filter_properties['os_type'] = os_type
 
-    def _setup_instance_group(self, context, filter_properties):
-        update_group_hosts = False
-        scheduler_hints = filter_properties.get('scheduler_hints') or {}
-        group_hint = scheduler_hints.get('group', None)
-        if group_hint:
-            group = objects.InstanceGroup.get_by_hint(context, group_hint)
-            policies = set(('anti-affinity', 'affinity', 'legacy'))
-            if any((policy in policies) for policy in group.policies):
-                if ('affinity' in group.policies and
-                        not self._supports_affinity):
-                        msg = _("ServerGroupAffinityFilter not configured")
-                        LOG.error(msg)
-                        raise exception.NoValidHost(reason=msg)
-                if ('anti-affinity' in group.policies and
-                        not self._supports_anti_affinity):
-                        msg = _("ServerGroupAntiAffinityFilter not configured")
-                        LOG.error(msg)
-                        raise exception.NoValidHost(reason=msg)
-                update_group_hosts = True
-                filter_properties.setdefault('group_hosts', set())
-                user_hosts = set(filter_properties['group_hosts'])
-                group_hosts = set(group.get_hosts(context))
-                filter_properties['group_hosts'] = user_hosts | group_hosts
-                filter_properties['group_policies'] = group.policies
-        return update_group_hosts
+    def _setup_instance_group(self, context, filter_properties,
+                              instance_uuids):
+        """Update filter_properties with server group info.
+
+        :returns: True if filter_properties has been updated, False if not.
+        """
+        if not self._supports_server_groups or not instance_uuids:
+            return False
+
+        try:
+            # NOTE(russellb) If there are multiple instance UUIDs, it's a boot
+            # request and they will all be in the same group, so it's safe to
+            # only check the first one.
+            group = objects.InstanceGroup.get_by_instance_uuid(context,
+                    instance_uuids[0])
+        except exception.InstanceGroupNotFound:
+            return False
+
+        policies = set(('anti-affinity', 'affinity', 'legacy'))
+        if not any((policy in policies) for policy in group.policies):
+            return False
+
+        if ('affinity' in group.policies and
+                not self._supports_affinity):
+            msg = _("ServerGroupAffinityFilter not configured")
+            LOG.error(msg)
+            raise exception.NoValidHost(reason=msg)
+        if ('anti-affinity' in group.policies and
+                not self._supports_anti_affinity):
+            msg = _("ServerGroupAntiAffinityFilter not configured")
+            LOG.error(msg)
+            raise exception.NoValidHost(reason=msg)
+
+        filter_properties.setdefault('group_hosts', set())
+        user_hosts = set(filter_properties['group_hosts'])
+        group_hosts = set(group.get_hosts(context))
+        filter_properties['group_hosts'] = user_hosts | group_hosts
+        filter_properties['group_policies'] = group.policies
+
+        return True
 
     def _schedule(self, context, request_spec, filter_properties):
         """Returns a list of hosts that meet the required specs,
@@ -243,7 +260,7 @@ class FilterScheduler(driver.Scheduler):
         instance_uuids = request_spec.get("instance_uuids", None)
 
         update_group_hosts = self._setup_instance_group(context,
-                filter_properties)
+                filter_properties, instance_uuids)
 
         config_options = self._get_configuration_options()
 
