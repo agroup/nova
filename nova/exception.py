@@ -1765,3 +1765,16 @@ class CPUPinningInvalid(Invalid):
 class ImageCPUPinningForbidden(Invalid):
     msg_fmt = _("Image property 'hw_cpu_policy' is not permitted to override "
                 "CPU pinning policy set against the flavor")
+
+
+class InstanceQuiesceNotSupported(Invalid):
+    msg_fmt = _('Quiescing is not supported in instance %(instance_id)s: '
+                '%(reason)s')
+
+
+class MemoryPageSizeInvalid(Invalid):
+    msg_fmt = _("Invalid memory page size '%(pagesize)s'")
+
+
+class MemoryPageSizeForbidden(Invalid):
+    msg_fmt = _("Page size %(pagesize)s forbidden against '%(against)s'")
