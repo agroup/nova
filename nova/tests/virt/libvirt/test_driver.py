@@ -1372,6 +1372,11 @@ class LibvirtConnTestCase(test.TestCase):
             self.assertEqual(3, cfg.cputune.vcpupin[3].id)
             self.assertEqual(set([4, 5]), cfg.cputune.vcpupin[3].cpuset)
             self.assertIsNotNone(cfg.cpu.numa)
+
+            self.assertIsInstance(cfg.cputune.emulatorpin,
+                                  vconfig.LibvirtConfigGuestCPUTuneEmulatorPin)
+            self.assertEqual(set([2, 3, 4, 5]), cfg.cputune.emulatorpin.cpuset)
+
             for index, (instance_cell, numa_cfg_cell) in enumerate(zip(
                     instance_topology.cells, cfg.cpu.numa.cells)):
                 self.assertEqual(index, numa_cfg_cell.id)
