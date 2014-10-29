@@ -686,8 +686,10 @@ class NUMATopologyTest(test.NoDBTestCase):
                 },
                 "expect": hw.VirtNUMAInstanceTopology(
                     [
-                        hw.VirtNUMATopologyCell(0, set([0, 1, 2, 3]), 1024),
-                        hw.VirtNUMATopologyCell(1, set([4, 5, 6, 7]), 1024),
+                        hw.VirtNUMATopologyCellInstance(
+                            0, set([0, 1, 2, 3]), 1024),
+                        hw.VirtNUMATopologyCellInstance(
+                            1, set([4, 5, 6, 7]), 1024),
                     ]),
             },
             {
@@ -714,9 +716,12 @@ class NUMATopologyTest(test.NoDBTestCase):
                 },
                 "expect": hw.VirtNUMAInstanceTopology(
                     [
-                        hw.VirtNUMATopologyCell(0, set([0, 1, 2, 3]), 1024),
-                        hw.VirtNUMATopologyCell(1, set([4, 6]), 512),
-                        hw.VirtNUMATopologyCell(2, set([5, 7]), 512),
+                        hw.VirtNUMATopologyCellInstance(
+                            0, set([0, 1, 2, 3]), 1024),
+                        hw.VirtNUMATopologyCellInstance(
+                            1, set([4, 6]), 512),
+                        hw.VirtNUMATopologyCellInstance(
+                            2, set([5, 7]), 512),
                     ]),
             },
             {
@@ -845,12 +850,12 @@ class NUMATopologyTest(test.NoDBTestCase):
             hw.VirtNUMATopologyCellUsage(2, set([5, 7]), 512),
         ])
         instance1 = hw.VirtNUMAInstanceTopology([
-            hw.VirtNUMATopologyCell(0, set([0, 1, 2]), 256),
-            hw.VirtNUMATopologyCell(1, set([4]), 256),
+            hw.VirtNUMATopologyCellInstance(0, set([0, 1, 2]), 256),
+            hw.VirtNUMATopologyCellInstance(1, set([4]), 256),
         ])
         instance2 = hw.VirtNUMAInstanceTopology([
-            hw.VirtNUMATopologyCell(0, set([0, 1]), 256),
-            hw.VirtNUMATopologyCell(1, set([5, 7]), 256),
+            hw.VirtNUMATopologyCellInstance(0, set([0, 1]), 256),
+            hw.VirtNUMATopologyCellInstance(1, set([5, 7]), 256),
         ])
 
         hostusage = hw.VirtNUMAHostTopology.usage_from_instances(
@@ -892,12 +897,12 @@ class NUMATopologyTest(test.NoDBTestCase):
             hw.VirtNUMATopologyCellUsage(6, set([5, 7]), 512),
         ])
         instance1 = hw.VirtNUMAInstanceTopology([
-            hw.VirtNUMATopologyCell(0, set([0, 1, 2]), 256),
-            hw.VirtNUMATopologyCell(6, set([4]), 256),
+            hw.VirtNUMATopologyCellInstance(0, set([0, 1, 2]), 256),
+            hw.VirtNUMATopologyCellInstance(6, set([4]), 256),
         ])
         instance2 = hw.VirtNUMAInstanceTopology([
-            hw.VirtNUMATopologyCell(0, set([0, 1]), 256),
-            hw.VirtNUMATopologyCell(5, set([5, 7]), 256),
+            hw.VirtNUMATopologyCellInstance(0, set([0, 1]), 256),
+            hw.VirtNUMATopologyCellInstance(5, set([5, 7]), 256),
         ])
 
         hostusage = hw.VirtNUMAHostTopology.usage_from_instances(
@@ -945,9 +950,9 @@ class NUMATopologyTest(test.NoDBTestCase):
             hw.VirtNUMATopologyCellUsage(2, set([5, 7]), 256),
         ])
         instance1 = hw.VirtNUMAInstanceTopology([
-            hw.VirtNUMATopologyCell(0, set([0, 1, 2]), 512),
-            hw.VirtNUMATopologyCell(1, set([3]), 256),
-            hw.VirtNUMATopologyCell(2, set([4]), 256)])
+            hw.VirtNUMATopologyCellInstance(0, set([0, 1, 2]), 512),
+            hw.VirtNUMATopologyCellInstance(1, set([3]), 256),
+            hw.VirtNUMATopologyCellInstance(2, set([4]), 256)])
 
         hostusage = hw.VirtNUMAHostTopology.usage_from_instances(
                 hosttopo, [instance1])
@@ -984,8 +989,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             hw.VirtNUMATopologyCellUsage(1, set([2, 3]), 512),
         ])
         instance1 = hw.VirtNUMAInstanceTopology([
-            hw.VirtNUMATopologyCell(0, set([0, 1]), 256),
-            hw.VirtNUMATopologyCell(2, set([2]), 256),
+            hw.VirtNUMATopologyCellInstance(0, set([0, 1]), 256),
+            hw.VirtNUMATopologyCellInstance(2, set([2]), 256),
         ])
 
         hostusage = hw.VirtNUMAHostTopology.usage_from_instances(
@@ -1032,7 +1037,7 @@ class NUMATopologyTest(test.NoDBTestCase):
             self.assertNUMACellMatches(expected_cell, got_cell)
 
     def test_numa_cell_dict(self):
-        cell = hw.VirtNUMATopologyCell(1, set([1, 2]), 512)
+        cell = hw.VirtNUMATopologyCellInstance(1, set([1, 2]), 512)
         cell_dict = {'cpus': '1,2',
                      'mem': {'total': 512},
                      'id': 1}
@@ -1058,8 +1063,8 @@ class NUMATopologyTest(test.NoDBTestCase):
     def test_numa_instance_topo_dict(self):
         topo = hw.VirtNUMAInstanceTopology(
                 cells=[
-                    hw.VirtNUMATopologyCell(1, set([1, 2]), 1024),
-                    hw.VirtNUMATopologyCell(2, set([3, 4]), 1024)])
+                    hw.VirtNUMATopologyCellInstance(1, set([1, 2]), 1024),
+                    hw.VirtNUMATopologyCellInstance(2, set([3, 4]), 1024)])
         topo_dict = {'cells': [
                         {'cpus': '1,2',
                           'mem': {'total': 1024},
@@ -1299,8 +1304,8 @@ class HelperMethodsTestCase(test.NoDBTestCase):
             hw.VirtNUMATopologyCellUsage(1, set([2, 3]), 512),
         ])
         self.instancetopo = hw.VirtNUMAInstanceTopology([
-            hw.VirtNUMATopologyCell(0, set([0, 1]), 256),
-            hw.VirtNUMATopologyCell(1, set([2]), 256),
+            hw.VirtNUMATopologyCellInstance(0, set([0, 1]), 256),
+            hw.VirtNUMATopologyCellInstance(1, set([2]), 256),
         ])
         self.context = context.RequestContext('fake-user',
                                               'fake-project')
