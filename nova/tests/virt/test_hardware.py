@@ -327,7 +327,7 @@ class VCPUTopologyTest(test.NoDBTestCase):
         for topo_test in testdata:
             if type(topo_test["expect"]) == tuple:
                 (preferred,
-                 maximum) = hw.VirtCPUTopology.get_topology_constraints(
+                 maximum) = hw._get_cpu_topology_constraints(
                      topo_test["flavor"],
                      topo_test["image"])
 
@@ -339,11 +339,11 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 self.assertEqual(topo_test["expect"][5], maximum.threads)
             else:
                 self.assertRaises(topo_test["expect"],
-                                  hw.VirtCPUTopology.get_topology_constraints,
+                                  hw._get_cpu_topology_constraints,
                                   topo_test["flavor"],
                                   topo_test["image"])
 
-    def test_possible_configs(self):
+    def test_possible_topologies(self):
         testdata = [
             {
                 "allow_threads": True,
@@ -433,11 +433,12 @@ class VCPUTopologyTest(test.NoDBTestCase):
         for topo_test in testdata:
             if type(topo_test["expect"]) == list:
                 actual = []
-                for topology in hw.VirtCPUTopology.get_possible_topologies(
+                for topology in hw._get_possible_cpu_topologies(
                         topo_test["vcpus"],
-                        hw.VirtCPUTopology(topo_test["maxsockets"],
-                                           topo_test["maxcores"],
-                                           topo_test["maxthreads"]),
+                        objects.VirtCPUTopology(
+                                        sockets=topo_test["maxsockets"],
+                                        cores=topo_test["maxcores"],
+                                        threads=topo_test["maxthreads"]),
                         topo_test["allow_threads"]):
                     actual.append([topology.sockets,
                                    topology.cores,
@@ -446,14 +447,15 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 self.assertEqual(topo_test["expect"], actual)
             else:
                 self.assertRaises(topo_test["expect"],
-                                  hw.VirtCPUTopology.get_possible_topologies,
+                                  hw._get_possible_cpu_topologies,
                                   topo_test["vcpus"],
-                                  hw.VirtCPUTopology(topo_test["maxsockets"],
-                                                     topo_test["maxcores"],
-                                                     topo_test["maxthreads"]),
+                                  objects.VirtCPUTopology(
+                                      sockets=topo_test["maxsockets"],
+                                      cores=topo_test["maxcores"],
+                                      threads=topo_test["maxthreads"]),
                                   topo_test["allow_threads"])
 
-    def test_sorting_configs(self):
+    def test_sorting_topologies(self):
         testdata = [
             {
                 "allow_threads": True,
@@ -524,18 +526,18 @@ class VCPUTopologyTest(test.NoDBTestCase):
 
         for topo_test in testdata:
             actual = []
-            possible = hw.VirtCPUTopology.get_possible_topologies(
+            possible = hw._get_possible_cpu_topologies(
                 topo_test["vcpus"],
-                hw.VirtCPUTopology(topo_test["maxsockets"],
-                                   topo_test["maxcores"],
-                                   topo_test["maxthreads"]),
+                objects.VirtCPUTopology(sockets=topo_test["maxsockets"],
+                                        cores=topo_test["maxcores"],
+                                        threads=topo_test["maxthreads"]),
                 topo_test["allow_threads"])
 
-            tops = hw.VirtCPUTopology.sort_possible_topologies(
+            tops = hw._sort_possible_cpu_topologies(
                 possible,
-                hw.VirtCPUTopology(topo_test["sockets"],
-                                   topo_test["cores"],
-                                   topo_test["threads"]))
+                objects.VirtCPUTopology(sockets=topo_test["sockets"],
+                                        cores=topo_test["cores"],
+                                        threads=topo_test["threads"]))
             for topology in tops:
                 actual.append([topology.sockets,
                                topology.cores,
@@ -657,7 +659,7 @@ class VCPUTopologyTest(test.NoDBTestCase):
         ]
 
         for topo_test in testdata:
-            topology = hw.VirtCPUTopology.get_desirable_configs(
+            topology = hw._get_desirable_cpu_topologies(
                 topo_test["flavor"],
                 topo_test["image"],
                 topo_test["allow_threads"])[0]

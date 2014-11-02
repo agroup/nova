@@ -1048,6 +1048,7 @@ object_data = {
     'Service': '1.4-82bbfd46a744a9c89bc44b47a1b81683',
     'ServiceList': '1.2-7529974a2565ec1eda23124a16aebe43',
     'TestSubclassedObject': '1.6-c63feb2f2533b7d075490c04a2cc10dd',
+    'VirtCPUTopology': '1.0-fc694de72e20298f7c6bab1083fd4563',
     'VirtualInterface': '1.0-10fdac4c704102b6d57d6936d6d790d2',
     'VirtualInterfaceList': '1.0-accbf02628a8063c1d885077a2bf49b6',
 }
