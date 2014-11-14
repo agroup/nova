@@ -27,13 +27,6 @@ from nova.tests import matchers
 from nova.virt import hardware as hw
 
 
-class FakeFlavor(dict):
-    def __init__(self, vcpus, memory, extra_specs):
-        self['vcpus'] = vcpus
-        self['memory_mb'] = memory
-        self['extra_specs'] = extra_specs
-
-
 class FakeFlavorObject(object):
     def __init__(self, vcpus, memory, extra_specs):
         self.vcpus = vcpus
@@ -199,7 +192,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
     def test_validate_config(self):
         testdata = [
             {  # Flavor sets preferred topology only
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "8",
                     "hw:cpu_cores": "2",
                     "hw:cpu_threads": "1",
@@ -212,7 +206,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 )
             },
             {  # Image topology overrides flavor
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "8",
                     "hw:cpu_cores": "2",
                     "hw:cpu_threads": "1",
@@ -230,7 +225,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 )
             },
             {  # Partial image topology overrides flavor
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "8",
                     "hw:cpu_cores": "2",
                     "hw:cpu_threads": "1",
@@ -245,7 +241,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 )
             },
             {  # Restrict use of threads
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_max_threads": "2",
                 }),
                 "image": {
@@ -258,7 +255,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 )
             },
             {  # Force use of at least two sockets
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_max_cores": "8",
                     "hw:cpu_max_threads": "1",
                 }),
@@ -270,7 +268,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 )
             },
             {  # Image limits reduce flavor
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_max_cores": "8",
                     "hw:cpu_max_threads": "1",
                 }),
@@ -284,7 +283,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 )
             },
             {  # Image limits kill flavor preferred
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "2",
                     "hw:cpu_cores": "8",
                     "hw:cpu_threads": "1",
@@ -299,7 +299,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 )
             },
             {  # Image limits cannot exceed flavor
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_max_cores": "8",
                     "hw:cpu_max_threads": "1",
                 }),
@@ -311,7 +312,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
                 "expect": exception.ImageVCPULimitsRangeExceeded,
             },
             {  # Image preferred cannot exceed flavor
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_max_cores": "8",
                     "hw:cpu_max_threads": "1",
                 }),
@@ -549,7 +551,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
         testdata = [
             {  # Flavor sets preferred topology only
                 "allow_threads": True,
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "8",
                     "hw:cpu_cores": "2",
                     "hw:cpu_threads": "1"
@@ -561,7 +564,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
             {  # Image topology overrides flavor
                 "allow_threads": True,
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "8",
                     "hw:cpu_cores": "2",
                     "hw:cpu_threads": "1",
@@ -578,7 +582,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
             {  # Image topology overrides flavor
                 "allow_threads": False,
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "8",
                     "hw:cpu_cores": "2",
                     "hw:cpu_threads": "1",
@@ -595,7 +600,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
             {  # Partial image topology overrides flavor
                 "allow_threads": True,
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "8",
                     "hw:cpu_cores": "2",
                     "hw:cpu_threads": "1"
@@ -609,7 +615,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
             {  # Restrict use of threads
                 "allow_threads": True,
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_max_threads": "1"
                 }),
                 "image": {
@@ -619,7 +626,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
             {  # Force use of at least two sockets
                 "allow_threads": True,
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_max_cores": "8",
                     "hw:cpu_max_threads": "1",
                 }),
@@ -630,7 +638,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
             {  # Image limits reduce flavor
                 "allow_threads": True,
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_max_sockets": "8",
                     "hw:cpu_max_cores": "8",
                     "hw:cpu_max_threads": "1",
@@ -644,7 +653,8 @@ class VCPUTopologyTest(test.NoDBTestCase):
             },
             {  # Image limits kill flavor preferred
                 "allow_threads": True,
-                "flavor": FakeFlavorObject(16, 2048, {
+                "flavor": objects.Flavor(vcpus=16, memory_mb=2048,
+                                         extra_specs={
                     "hw:cpu_sockets": "2",
                     "hw:cpu_cores": "8",
                     "hw:cpu_threads": "1",
@@ -674,14 +684,15 @@ class NUMATopologyTest(test.NoDBTestCase):
     def test_topology_constraints(self):
         testdata = [
             {
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                 }),
                 "image": {
                 },
                 "expect": None,
             },
             {
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048, extra_specs={
                     "hw:numa_nodes": 2
                 }),
                 "image": {
@@ -697,7 +708,7 @@ class NUMATopologyTest(test.NoDBTestCase):
             {
                 # vcpus is not a multiple of nodes, so it
                 # is an error to not provide cpu/mem mapping
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048, extra_specs={
                     "hw:numa_nodes": 3
                 }),
                 "image": {
@@ -705,7 +716,7 @@ class NUMATopologyTest(test.NoDBTestCase):
                 "expect": exception.ImageNUMATopologyAsymmetric,
             },
             {
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048, extra_specs={
                     "hw:numa_nodes": 3,
                     "hw:numa_cpus.0": "0-3",
                     "hw:numa_mem.0": "1024",
@@ -729,7 +740,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             {
                 # Request a CPU that is out of range
                 # wrt vCPU count
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                     "hw:numa_nodes": 1,
                     "hw:numa_cpus.0": "0-16",
                     "hw:numa_mem.0": "2048",
@@ -740,7 +752,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             },
             {
                 # Request the same CPU in two nodes
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                     "hw:numa_nodes": 2,
                     "hw:numa_cpus.0": "0-7",
                     "hw:numa_mem.0": "1024",
@@ -753,7 +766,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             },
             {
                 # Request with some CPUs not assigned
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                     "hw:numa_nodes": 2,
                     "hw:numa_cpus.0": "0-2",
                     "hw:numa_mem.0": "1024",
@@ -766,7 +780,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             },
             {
                 # Request too little memory vs flavor total
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                     "hw:numa_nodes": 2,
                     "hw:numa_cpus.0": "0-3",
                     "hw:numa_mem.0": "512",
@@ -779,7 +794,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             },
             {
                 # Request too much memory vs flavor total
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                     "hw:numa_nodes": 2,
                     "hw:numa_cpus.0": "0-3",
                     "hw:numa_mem.0": "1576",
@@ -792,7 +808,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             },
             {
                 # Request missing mem.0
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                     "hw:numa_nodes": 2,
                     "hw:numa_cpus.0": "0-3",
                     "hw:numa_mem.1": "1576",
@@ -803,7 +820,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             },
             {
                 # Request missing cpu.0
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                     "hw:numa_nodes": 2,
                     "hw:numa_mem.0": "1576",
                     "hw:numa_cpus.1": "4-7",
@@ -814,7 +832,8 @@ class NUMATopologyTest(test.NoDBTestCase):
             },
             {
                 # Image attempts to override flavor
-                "flavor": FakeFlavor(8, 2048, {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048,
+                                         extra_specs={
                     "hw:numa_nodes": 2,
                 }),
                 "image": {
