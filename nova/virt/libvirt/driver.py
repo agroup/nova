@@ -3652,19 +3652,7 @@ class LibvirtDriver(driver.ComputeDriver):
         return id_maps
 
     def _get_cpu_numa_config_from_instance(self, context, instance):
-        # TODO(ndipanov): Remove this check once the tests are fixed, in
-        # reality all code paths should be using instance objects now.
-        if isinstance(instance, objects.Instance):
-            instance_topology = instance.numa_topology
-        else:
-            try:
-                instance_topology = (
-                        objects.InstanceNUMATopology.get_by_instance_uuid(
-                            context or nova_context.get_admin_context(),
-                            instance['uuid']))
-            except exception.NumaTopologyNotFound:
-                return
-
+        instance_topology = hardware.instance_topology_from_instance(instance)
         if instance_topology:
             guest_cpu_numa = vconfig.LibvirtConfigGuestCPUNUMA()
             for instance_cell in instance_topology.cells:
