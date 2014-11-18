@@ -410,17 +410,22 @@ class _TestInstanceObject(object):
     @mock.patch('nova.objects.Instance._from_db_object')
     def test_save_updates_numa_topology(self, mock_fdo, mock_update,
             mock_extra_update):
+        fake_obj_numa_topology = (
+                instance_numa_topology.InstanceNUMATopology(cells=[
+            instance_numa_topology.InstanceNUMACell(
+                id=0, cpuset=set([0]), memory=128),
+            instance_numa_topology.InstanceNUMACell(
+                id=1, cpuset=set([1]), memory=128)]))
+        fake_obj_numa_topology.instance_uuid = 'fake-uuid'
+        jsonified = fake_obj_numa_topology._to_json()
+
         mock_update.return_value = None, None
         inst = instance.Instance(
             context=self.context, id=123, uuid='fake-uuid')
-        inst.numa_topology = (
-            instance_numa_topology.InstanceNUMATopology.obj_from_topology(
-                test_instance_numa_topology.fake_numa_topology))
+        inst.numa_topology = fake_obj_numa_topology
         inst.save()
         mock_extra_update.assert_called_once_with(
-                self.context, inst.uuid,
-                {'numa_topology':
-                    test_instance_numa_topology.fake_numa_topology.to_json()})
+            self.context, inst.uuid, {'numa_topology': jsonified})
         mock_extra_update.reset_mock()
         inst.numa_topology = None
         inst.save()
@@ -696,16 +701,15 @@ class _TestInstanceObject(object):
 
     def test_create_with_numa_topology(self):
         inst = instance.Instance(uuid=self.fake_instance['uuid'],
-                numa_topology=instance_numa_topology.InstanceNUMATopology
-                        .obj_from_topology(
-                            test_instance_numa_topology.fake_numa_topology))
+            numa_topology=test_instance_numa_topology.fake_obj_numa_topology)
 
         inst.create(self.context)
         self.assertIsNotNone(inst.numa_topology)
         got_numa_topo = (
                 instance_numa_topology.InstanceNUMATopology
                 .get_by_instance_uuid(self.context, inst.uuid))
-        self.assertEqual(inst.numa_topology.id, got_numa_topo.id)
+        self.assertEqual(inst.numa_topology.instance_uuid,
+                         got_numa_topo.instance_uuid)
 
     def test_recreate_fails(self):
         inst = instance.Instance(user_id=self.context.user_id,
