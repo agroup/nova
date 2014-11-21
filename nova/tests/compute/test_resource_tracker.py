@@ -282,18 +282,20 @@ class BaseTestCase(test.TestCase):
             'image_ref': None,
             'root_device_name': None,
         }
+        extra = {
+            'id': 1, 'created_at': None, 'updated_at': None,
+            'deleted_at': None, 'deleted': None,
+            'instance_uuid': instance['uuid'],
+            'numa_topology': None
+        }
         numa_topology = kwargs.pop('numa_topology', None)
         if numa_topology:
-            numa_topology = {
-                'id': 1, 'created_at': None, 'updated_at': None,
-                'deleted_at': None, 'deleted': None,
-                'instance_uuid': instance['uuid'],
-                'numa_topology': numa_topology.to_json()
-            }
+            extra['numa_topology'] = numa_topology._to_json()
+
         instance.update(kwargs)
 
         self._instances[instance_uuid] = instance
-        self._numa_topologies[instance_uuid] = numa_topology
+        self._numa_topologies[instance_uuid] = extra
         return instance
 
     def _fake_flavor_create(self, **kwargs):
@@ -713,9 +715,11 @@ class TrackerExtraResourcesTestCase(BaseTrackerTestCase):
 class InstanceClaimTestCase(BaseTrackerTestCase):
     def _instance_topology(self, mem):
         mem = mem * 1024
-        return hardware.VirtNUMAInstanceTopology(
-            cells=[hardware.VirtNUMATopologyCellInstance(0, set([1]), mem),
-                   hardware.VirtNUMATopologyCellInstance(1, set([3]), mem)])
+        return objects.InstanceNUMATopology(
+            cells=[objects.InstanceNUMACell(
+                id=0, cpuset=set([1]), memory=mem),
+                   objects.InstanceNUMACell(
+                id=1, cpuset=set([3]), memory=mem)])
 
     def _claim_topology(self, mem, cpus=1):
         if self.tracker.driver.numa_topology is None:

@@ -1285,12 +1285,11 @@ class LibvirtConnTestCase(test.TestCase):
             self.assertIsNone(cfg.cpu.numa)
 
     def test_get_guest_config_non_numa_host_instance_topo(self):
-        instance_topology = objects.InstanceNUMATopology.obj_from_topology(
-                hardware.VirtNUMAInstanceTopology(
-                    cells=[hardware.VirtNUMATopologyCellInstance(
-                        0, set([0]), 1024),
-                           hardware.VirtNUMATopologyCellInstance(
-                               1, set([2]), 1024)]))
+        instance_topology = objects.InstanceNUMATopology(
+                    cells=[objects.InstanceNUMACell(
+                        id=0, cpuset=set([0]), memory=1024),
+                           objects.InstanceNUMACell(
+                        id=1, cpuset=set([2]), memory=1024)])
         instance_ref = db.instance_create(self.context, self.test_instance)
         flavor = objects.Flavor(memory_mb=2048, vcpus=2, root_gb=496,
                                 ephemeral_gb=8128, swap=33550336, name='fake',
@@ -1327,12 +1326,11 @@ class LibvirtConnTestCase(test.TestCase):
                                  numa_cfg_cell.memory)
 
     def test_get_guest_config_numa_host_instance_topo(self):
-        instance_topology = objects.InstanceNUMATopology.obj_from_topology(
-                hardware.VirtNUMAInstanceTopology(
-                    cells=[hardware.VirtNUMATopologyCellInstance(
-                                1, set([0, 1]), 1024),
-                           hardware.VirtNUMATopologyCellInstance(
-                                2, set([2, 3]), 1024)]))
+        instance_topology = objects.InstanceNUMATopology(
+                    cells=[objects.InstanceNUMACell(
+                        id=1, cpuset=set([0, 1]), memory=1024),
+                           objects.InstanceNUMACell(
+                        id=2, cpuset=set([2, 3]), memory=1024)])
         instance_ref = db.instance_create(self.context, self.test_instance)
         flavor = objects.Flavor(memory_mb=2048, vcpus=4, root_gb=496,
                                 ephemeral_gb=8128, swap=33550336, name='fake',
