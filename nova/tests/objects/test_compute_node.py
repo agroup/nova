@@ -16,6 +16,7 @@ import mock
 
 from nova import db
 from nova import exception
+from nova import objects
 from nova.objects import compute_node
 from nova.objects import service
 from nova.openstack.common import jsonutils
@@ -29,10 +30,14 @@ fake_stats_db_format = jsonutils.dumps(fake_stats)
 # host_ip is coerced from a string to an IPAddress
 # but needs to be converted to a string for the database format
 fake_host_ip = '127.0.0.1'
-fake_numa_topology = hardware.VirtNUMAHostTopology(
-        cells=[hardware.VirtNUMATopologyCellUsage(0, set([1, 2]), 512),
-               hardware.VirtNUMATopologyCellUsage(1, set([3, 4]), 512)])
-fake_numa_topology_db_format = fake_numa_topology.to_json()
+fake_numa_topology = objects.NUMATopology(
+        cells=[objects.NUMACell(id=0, cpuset=set([1, 2]), memory=512,
+                                cpu_usage=0, memory_usage=0),
+               objects.NUMACell(id=1, cpuset=set([3, 4]), memory=512,
+                                cpu_usage=0, memory_usage=0)])
+fake_numa_topology_db_format = fake_numa_topology._to_json()
+# for backward compatibility, each supported instance object
+# is stored as a list in the database
 fake_compute_node = {
     'created_at': NOW,
     'updated_at': None,

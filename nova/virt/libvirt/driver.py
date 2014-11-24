@@ -4830,11 +4830,13 @@ class LibvirtDriver(driver.ComputeDriver):
         if topology is None or not topology.cells:
             return
 
-        topology = hardware.VirtNUMAHostTopology(
-                cells=[hardware.VirtNUMATopologyCellUsage(
-                            cell.id, set(cpu.id for cpu in cell.cpus),
-                            cell.memory / units.Ki)
-                       for cell in topology.cells])
+        topology = objects.NUMATopology(
+                cells=[objects.NUMACell(
+                    id=cell.id,
+                    cpuset=set(cpu.id for cpu in cell.cpus),
+                    memory=cell.memory / units.Ki,
+                    cpu_usage=0, memory_usage=0)
+                for cell in topology.cells])
 
         allowed_cpus = hardware.get_vcpu_pin_set()
         if allowed_cpus:
@@ -6417,7 +6419,7 @@ class HostState(object):
 
         numa_topology = self.driver._get_host_numa_topology()
         if numa_topology:
-            data['numa_topology'] = numa_topology.to_json()
+            data['numa_topology'] = numa_topology._to_json()
         else:
             data['numa_topology'] = None
 
