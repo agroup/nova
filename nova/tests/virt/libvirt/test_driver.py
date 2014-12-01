@@ -1327,11 +1327,11 @@ class LibvirtConnTestCase(test.TestCase):
     def test_get_guest_config_numa_host_instance_topo(self):
         instance_topology = objects.InstanceNUMATopology.obj_from_topology(
                 hardware.VirtNUMAInstanceTopology(
-                    cells=[hardware.VirtNUMATopologyCell(0, set([0, 1]), 1024),
-                           hardware.VirtNUMATopologyCell(1, set([2, 3]),
+                    cells=[hardware.VirtNUMATopologyCell(1, set([0, 1]), 1024),
+                           hardware.VirtNUMATopologyCell(2, set([2, 3]),
                                                          1024)]))
         instance_ref = db.instance_create(self.context, self.test_instance)
-        flavor = objects.Flavor(memory_mb=2048, vcpus=2, root_gb=496,
+        flavor = objects.Flavor(memory_mb=2048, vcpus=4, root_gb=496,
                                 ephemeral_gb=8128, swap=33550336, name='fake',
                                 extra_specs={})
 
@@ -1355,23 +1355,24 @@ class LibvirtConnTestCase(test.TestCase):
                 mock.patch.object(
                     conn, "_get_host_capabilities", return_value=caps),
                 mock.patch.object(
-                    hardware, 'get_vcpu_pin_set', return_value=set([0, 1, 2]))
+                    hardware, 'get_vcpu_pin_set',
+                    return_value=set([2, 3, 4, 5]))
                 ):
             cfg = conn._get_guest_config(instance_ref, [], {}, disk_info)
             self.assertIsNone(cfg.cpuset)
             # Test that the pinning is correct and limited to allowed only
             self.assertEqual(0, cfg.cputune.vcpupin[0].id)
-            self.assertEqual(set([0, 1]), cfg.cputune.vcpupin[0].cpuset)
+            self.assertEqual(set([2, 3]), cfg.cputune.vcpupin[0].cpuset)
             self.assertEqual(1, cfg.cputune.vcpupin[1].id)
-            self.assertEqual(set([0, 1]), cfg.cputune.vcpupin[1].cpuset)
+            self.assertEqual(set([2, 3]), cfg.cputune.vcpupin[1].cpuset)
             self.assertEqual(2, cfg.cputune.vcpupin[2].id)
-            self.assertEqual(set([2]), cfg.cputune.vcpupin[2].cpuset)
+            self.assertEqual(set([4, 5]), cfg.cputune.vcpupin[2].cpuset)
             self.assertEqual(3, cfg.cputune.vcpupin[3].id)
-            self.assertEqual(set([2]), cfg.cputune.vcpupin[3].cpuset)
+            self.assertEqual(set([4, 5]), cfg.cputune.vcpupin[3].cpuset)
             self.assertIsNotNone(cfg.cpu.numa)
-            for instance_cell, numa_cfg_cell in zip(
-                    instance_topology.cells, cfg.cpu.numa.cells):
-                self.assertEqual(instance_cell.id, numa_cfg_cell.id)
+            for index, (instance_cell, numa_cfg_cell) in enumerate(zip(
+                    instance_topology.cells, cfg.cpu.numa.cells)):
+                self.assertEqual(index, numa_cfg_cell.id)
                 self.assertEqual(instance_cell.cpuset, numa_cfg_cell.cpus)
                 self.assertEqual(instance_cell.memory * units.Ki,
                                  numa_cfg_cell.memory)
@@ -7994,37 +7995,23 @@ class LibvirtConnTestCase(test.TestCase):
     def _fake_caps_numa_topology(self):
         topology = vconfig.LibvirtConfigCapsNUMATopology()
 
-        cell_0 = vconfig.LibvirtConfigCapsNUMACell()
-        cell_0.id = 0
-        cell_0.memory = 1024 * units.Ki
-        cpu_0_0 = vconfig.LibvirtConfigCapsNUMACPU()
-        cpu_0_0.id = 0
-        cpu_0_0.socket_id = 0
-        cpu_0_0.core_id = 0
-        cpu_0_0.sibling = 0
-        cpu_0_1 = vconfig.LibvirtConfigCapsNUMACPU()
-        cpu_0_1.id = 1
-        cpu_0_1.socket_id = 0
-        cpu_0_1.core_id = 1
-        cpu_0_1.sibling = 1
-        cell_0.cpus = [cpu_0_0, cpu_0_1]
+        for i in range(4):
+            cell = vconfig.LibvirtConfigCapsNUMACell()
+            cell.id = i
+            cell.memory = 1024 * units.Ki
+            cpu_0 = vconfig.LibvirtConfigCapsNUMACPU()
+            cpu_0.id = 2 * i
+            cpu_0.socket_id = i
+            cpu_0.core_id = 0
+            cpu_0.siblings = [2 * i, 2 * i + 1]
+            cpu_1 = vconfig.LibvirtConfigCapsNUMACPU()
+            cpu_1.id = 2 * i + 1
+            cpu_1.socket_id = i
+            cpu_1.core_id = 1
+            cpu_1.siblings = [2 * i, 2 * i + 1]
+            cell.cpus = [cpu_0, cpu_1]
+            topology.cells.append(cell)
 
-        cell_1 = vconfig.LibvirtConfigCapsNUMACell()
-        cell_1.id = 1
-        cell_1.memory = 1024 * units.Ki
-        cpu_1_0 = vconfig.LibvirtConfigCapsNUMACPU()
-        cpu_1_0.id = 2
-        cpu_1_0.socket_id = 1
-        cpu_1_0.core_id = 0
-        cpu_1_0.sibling = 2
-        cpu_1_1 = vconfig.LibvirtConfigCapsNUMACPU()
-        cpu_1_1.id = 3
-        cpu_1_1.socket_id = 1
-        cpu_1_1.core_id = 1
-        cpu_1_1.sibling = 3
-        cell_1.cpus = [cpu_1_0, cpu_1_1]
-
-        topology.cells = [cell_0, cell_1]
         return topology
 
     def test_get_host_numa_topology(self):
@@ -8039,7 +8026,13 @@ class LibvirtConnTestCase(test.TestCase):
                                   'id': 0},
                                 {'cpus': '3', 'cpu_usage': 0,
                                   'mem': {'total': 1024, 'used': 0},
-                                  'id': 1}]}
+                                  'id': 1},
+                                {'cpus': '', 'cpu_usage': 0,
+                                'mem': {'total': 1024, 'used': 0},
+                                'id': 2},
+                                {'cpus': '', 'cpu_usage': 0,
+                                'mem': {'total': 1024, 'used': 0},
+                                'id': 3}]}
         with contextlib.nested(
                 mock.patch.object(conn, '_has_min_version', return_value=True),
                 mock.patch.object(

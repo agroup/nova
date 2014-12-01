@@ -3747,6 +3747,11 @@ class LibvirtDriver(driver.ComputeDriver):
                                 pin_cpuset.id = cpu
                                 pin_cpuset.cpuset = host_cell.cpuset
                                 guest_cpu_tune.vcpupin.append(pin_cpuset)
+
+                # normalize cell.id
+                for i, cell in enumerate(guest_cpu_numa.cells):
+                    cell.id = i
+
                 return None, guest_cpu_tune, guest_cpu_numa
             else:
                 return allowed_cpus, None, guest_cpu_numa
