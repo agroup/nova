@@ -627,6 +627,129 @@ class VirtNUMATopologyCellLimit(VirtNUMATopologyCell):
         return cls(cell_id, cpuset, memory, cpu_limit, memory_limit)
 
 
+def _can_pack_instance_cell(instance_pinning_cell,
+                            threads_per_core,
+                            cores_list):
+    if threads_per_core * len(cores_list) < len(instance_pinning_cell):
+        return False
+    if instance_pinning_cell.siblings:
+        return instance_pinning_cell.cpu_topology.threads <= threads_per_core
+    else:
+        return len(instance_pinning_cell) % threads_per_core == 0
+
+
+def _pack_instance_onto_cores(available_siblings, instance_cell, host_cell_id):
+    """Pack an instance onto a set of siblings
+
+    :param available_siblings: list of sets of CPU id's - available
+                               siblings per core
+    :param instance_cell: An instance of objects.InstanceNUMACell describing
+                          the pinning requirements of the instance
+
+    :returns: An instance of objects.InstanceNUMACell containing the pinning
+              information, and potentially a new topology to be exposed to the
+              instance. None if there is no valid way to satisfy the sibling
+              requirements for the instance.
+
+    This method will calculate the pinning for the given instance and it's
+    topology, making sure that hyperthreads of the instance match up with
+    those of the host when the pinning takes effect.
+    """
+
+    # We build up a data structure 'can_pack' that answers the question:
+    # 'Given the number of threads I want to pack, give me a list of all
+    # the available sibling sets that can accomodate it'
+    can_pack = collections.defaultdict(list)
+    for sib in available_siblings:
+        for threads_no in range(1, len(sib) + 1):
+            can_pack[threads_no].append(sib)
+
+    # We iterate over the can_pack dict in descending order of cores that
+    # can be packed - an attempt to get even distribution over time
+    for cores_per_sib, sib_list in sorted(
+            (t for t in can_pack.items()), reverse=True):
+        if _can_pack_instance_cell(instance_cell,
+                                   cores_per_sib, sib_list):
+            sliced_sibs = map(lambda s: list(s)[:cores_per_sib], sib_list)
+            if instance_cell.siblings:
+                pinning = zip(itertools.chain(*instance_cell.siblings),
+                              itertools.chain(*sliced_sibs))
+            else:
+                pinning = zip(sorted(instance_cell.cpuset),
+                              itertools.chain(*sliced_sibs))
+
+            topology = (instance_cell.cpu_topology or
+                        objects.VirtCPUTopology(sockets=1,
+                                                cores=len(sliced_sibs),
+                                                threads=cores_per_sib))
+            instance_cell.pin_vcpus(*pinning)
+            instance_cell.cpu_topology = topology
+            instance_cell.id = host_cell_id
+            return instance_cell
+
+
+def _numa_fit_instance_cell_with_pinning(host_cell, instance_cell):
+    """Figure out if cells can be pinned to a host cell and return details
+
+    :param host_cell: objects.NUMACell instance - the host cell that
+                      the isntance should be pinned to
+    :param instance_cell: objects.InstanceNUMACell instance without any
+                          pinning information
+
+    :returns: objects.InstanceNUMACell instance with pinning information,
+              or None if instance cannot be pinned to the given host
+    """
+    # If we do not have enough CPUs available - bail early
+    if len(host_cell.free_cpus) < len(instance_cell):
+        return
+
+    # No memory oversubscription with cpu pinning, sorry.
+    if (host_cell.memory - host_cell.memory_usage) < instance_cell.memory:
+        return
+
+    # There is hyperthreading enabled on the host so we want to make sure
+    # we expose that to the guest
+    if host_cell.siblings:
+        available_siblings = [sibling_set & host_cell.free_cpus
+                              for sibling_set in host_cell.siblings]
+        # Instance requires hyperthreading in it's topology - so we need to
+        # pack it
+        if instance_cell.cpu_topology and instance_cell.siblings:
+            return _pack_instance_onto_cores(available_siblings,
+                                             instance_cell, host_cell.id)
+        # If it does not and the host has hyperthreading - we have to
+        # expose it
+        else:
+            largest_free_sibling_set = sorted(
+                    available_siblings, key=len)[-1]
+            # We can pack the instance onto a single core
+            if (len(instance_cell.cpuset) <=
+                    len(largest_free_sibling_set)):
+                pinning = zip(sorted(instance_cell.cpuset),
+                              largest_free_sibling_set)
+                topology = (instance_cell.cpu_topology or
+                            objects.VirtCPUTopology(
+                                sockets=1, cores=1,
+                                threads=len(instance_cell)))
+                instance_cell.pin_vcpus(*pinning)
+                instance_cell.cpu_topology = topology
+                instance_cell.id = host_cell.id
+                return instance_cell
+            # We can't so we need to pack it anyway and update the topology
+            else:
+                return _pack_instance_onto_cores(available_siblings,
+                                                 instance_cell, host_cell.id)
+    else:
+        # Straightforward to pin to available cpus when there is no
+        # hyperthreading on the host
+        to_pin = sorted(
+                host_cell.free_cpus)[:len(instance_cell)]
+        pinning = zip(sorted(instance_cell.cpuset), to_pin)
+        instance_cell.pin_vcpus(*pinning)
+        instance_cell.id = host_cell.id
+        return instance_cell
+
+
 def _numa_fit_instance_cell(host_cell, instance_cell, limit_cell=None):
     """Check if a instance cell can fit and set it's cell id
 
