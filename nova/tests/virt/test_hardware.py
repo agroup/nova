@@ -792,6 +792,18 @@ class NUMATopologyTest(test.NoDBTestCase):
                     ]),
             },
             {
+                "flavor": objects.Flavor(vcpus=8, memory_mb=2048, extra_specs={
+                    "hw:mem_page_size": 2048
+                }),
+                "image": {
+                },
+                "expect": objects.InstanceNUMATopology(cells=[
+                        objects.InstanceNUMACell(
+                            id=0, cpuset=set([0, 1, 2, 3, 4, 5, 6, 7]),
+                            memory=2048, pagesize=2048)
+                    ]),
+            },
+            {
                 # vcpus is not a multiple of nodes, so it
                 # is an error to not provide cpu/mem mapping
                 "flavor": objects.Flavor(vcpus=8, memory_mb=2048, extra_specs={

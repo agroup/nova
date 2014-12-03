@@ -915,7 +915,7 @@ def _numa_get_pagesize_constraints(flavor, image_meta):
     return pagesize
 
 
-def _numa_get_constraints_manual(nodes, flavor, image_meta):
+def _numa_get_constraints_manual(nodes, pagesize, flavor, image_meta):
     cells = []
     totalmem = 0
 
@@ -947,7 +947,7 @@ def _numa_get_constraints_manual(nodes, flavor, image_meta):
             availcpus.remove(cpu)
 
         cells.append(objects.InstanceNUMACell(
-            id=node, cpuset=cpuset, memory=mem))
+            id=node, cpuset=cpuset, memory=mem, pagesize=pagesize))
         totalmem = totalmem + mem
 
     if availcpus:
@@ -962,7 +962,7 @@ def _numa_get_constraints_manual(nodes, flavor, image_meta):
     return objects.InstanceNUMATopology(cells=cells)
 
 
-def _numa_get_constraints_auto(nodes, flavor, image_meta):
+def _numa_get_constraints_auto(nodes, pagesize, flavor, image_meta):
     if ((flavor['vcpus'] % nodes) > 0 or
         (flavor['memory_mb'] % nodes) > 0):
         raise exception.ImageNUMATopologyAsymmetric()
@@ -985,7 +985,7 @@ def _numa_get_constraints_auto(nodes, flavor, image_meta):
         cpuset = set(range(start, start + ncpus))
 
         cells.append(objects.InstanceNUMACell(
-            id=node, cpuset=cpuset, memory=mem))
+            id=node, cpuset=cpuset, memory=mem, pagesize=pagesize))
 
     return objects.InstanceNUMATopology(cells=cells)
 
@@ -1031,23 +1031,24 @@ def numa_get_constraints(flavor, image_meta):
     nodes = _numa_get_flavor_or_image_prop(
         flavor, image_meta, "numa_nodes")
 
-    if nodes is None:
-        return _add_cpu_pinning_constraint(flavor, image_meta, None)
+    pagesize = _numa_get_pagesize_constraints(
+        flavor, image_meta)
 
-    nodes = int(nodes)
+    numa_topology = None
+    if nodes or pagesize:
+        nodes = nodes and int(nodes) or 1
+        # We'll pick what path to go down based on whether
+        # anything is set for the first node. Both paths
+        # have logic to cope with inconsistent property usage
+        auto = _numa_get_flavor_or_image_prop(
+            flavor, image_meta, "numa_cpus.0") is None
 
-    # We'll pick what path to go down based on whether
-    # anything is set for the first node. Both paths
-    # have logic to cope with inconsistent property usage
-    auto = _numa_get_flavor_or_image_prop(
-        flavor, image_meta, "numa_cpus.0") is None
-
-    if auto:
-        numa_topology = _numa_get_constraints_auto(
-            nodes, flavor, image_meta)
-    else:
-        numa_topology = _numa_get_constraints_manual(
-            nodes, flavor, image_meta)
+        if auto:
+            numa_topology = _numa_get_constraints_auto(
+                nodes, pagesize, flavor, image_meta)
+        else:
+            numa_topology = _numa_get_constraints_manual(
+                nodes, pagesize, flavor, image_meta)
 
     return _add_cpu_pinning_constraint(flavor, image_meta, numa_topology)
 
