@@ -20,18 +20,18 @@ import mox
 
 from nova.compute import vm_states
 from nova import db
-from nova.openstack.common import jsonutils
 from nova import objects
+from nova.openstack.common import jsonutils
 from nova.scheduler import filter_scheduler
 from nova.scheduler import host_manager
 
 NUMA_TOPOLOGY = objects.NUMATopology(
                            cells=[objects.NUMACell(
                                       id=0, cpuset=set([1, 2]), memory=512,
-                               cpu_usage=0, memory_usage=0),
+                               cpu_usage=0, memory_usage=0, mempages=[]),
                                   objects.NUMACell(
                                       id=1, cpuset=set([3, 4]), memory=512,
-                                cpu_usage=0, memory_usage=0)])
+                                cpu_usage=0, memory_usage=0, mempages=[])])
 
 COMPUTE_NODES = [
         dict(id=1, local_gb=1024, memory_mb=1024, vcpus=1,

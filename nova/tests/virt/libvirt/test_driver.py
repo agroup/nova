@@ -1431,7 +1431,6 @@ class LibvirtConnTestCase(test.TestCase):
                 self.assertEqual(instance_cell.memory * units.Ki,
                                  numa_cfg_cell.memory)
 
-
     def test_get_guest_config_clock(self):
         self.flags(virt_type='kvm', group='libvirt')
         conn = libvirt_driver.LibvirtDriver(fake.FakeVirtAPI(), True)
@@ -8059,12 +8058,19 @@ class LibvirtConnTestCase(test.TestCase):
             cpu_0.socket_id = i
             cpu_0.core_id = 0
             cpu_0.siblings = set([2 * i, 2 * i + 1])
+            mempages_0 = vconfig.LibvirtConfigCapsNUMAPages()
+            mempages_0.size = 4
+            mempages_0.total = 1024 * i
             cpu_1 = vconfig.LibvirtConfigCapsNUMACPU()
             cpu_1.id = 2 * i + 1
             cpu_1.socket_id = i
             cpu_1.core_id = 1
             cpu_1.siblings = set([2 * i, 2 * i + 1])
+            mempages_1 = vconfig.LibvirtConfigCapsNUMAPages()
+            mempages_1.size = 2048
+            mempages_1.total = 0 + i
             cell.cpus = [cpu_0, cpu_1]
+            cell.mempages = [mempages_0, mempages_1]
             topology.cells.append(cell)
 
         return topology
@@ -8104,6 +8110,16 @@ class LibvirtConnTestCase(test.TestCase):
             self.assertEqual(set([]), got_topo.cells[3].pinned_cpus)
             self.assertEqual([set([0, 1])], got_topo.cells[0].siblings)
             self.assertEqual([], got_topo.cells[1].siblings)
+            # cells 0
+            self.assertEqual(4, got_topo.cells[0].mempages[0].size_kb)
+            self.assertEqual(0, got_topo.cells[0].mempages[0].total)
+            self.assertEqual(2048, got_topo.cells[0].mempages[1].size_kb)
+            self.assertEqual(0, got_topo.cells[0].mempages[1].total)
+            # cells 1
+            self.assertEqual(4, got_topo.cells[1].mempages[0].size_kb)
+            self.assertEqual(1024, got_topo.cells[1].mempages[0].total)
+            self.assertEqual(2048, got_topo.cells[1].mempages[1].size_kb)
+            self.assertEqual(1, got_topo.cells[1].mempages[1].total)
 
     def test_get_host_numa_topology_empty(self):
         caps = vconfig.LibvirtConfigCaps()

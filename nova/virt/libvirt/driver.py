@@ -4855,7 +4855,13 @@ class LibvirtDriver(driver.ComputeDriver):
             cell = objects.NUMACell(id=cell.id, cpuset=cpuset,
                                     memory=cell.memory / units.Ki,
                                     cpu_usage=0, memory_usage=0,
-                                    siblings=siblings)
+                                    siblings=siblings,
+                                    mempages=[
+                                        objects.NUMAPagesTopology(
+                                            size_kb=pages.size,
+                                            total=pages.total,
+                                            used=0)
+                                    for pages in cell.mempages])
             cells.append(cell)
 
         return objects.NUMATopology(cells=cells)

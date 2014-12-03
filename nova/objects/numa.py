@@ -82,8 +82,10 @@ class NUMACell(base.NovaObject):
         memory = data_dict.get('mem', {}).get('total', 0)
         memory_usage = data_dict.get('mem', {}).get('used', 0)
         cell_id = data_dict.get('id')
+        mempages = data_dict.get('mempages', [])
         return cls(id=cell_id, cpuset=cpuset, memory=memory,
-                   cpu_usage=cpu_usage, memory_usage=memory_usage)
+                   cpu_usage=cpu_usage, memory_usage=memory_usage,
+                   mempages=mempages)
 
 
 class NUMAPagesTopology(base.NovaObject):
