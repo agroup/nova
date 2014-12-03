@@ -1248,6 +1248,42 @@ class LibvirtConnTestCase(test.TestCase):
             self.assertIsNone(cfg.cputune)
             self.assertIsNone(cfg.cpu.numa)
 
+    def _test_get_guest_memory_backing_config(
+            self, host_topology, inst_topology, numatune):
+        conn = libvirt_driver.LibvirtDriver(fake.FakeVirtAPI(), True)
+        with mock.patch.object(
+                conn, "_get_host_numa_topology",
+                return_value=host_topology):
+            return conn._get_guest_memory_backing_config(
+                inst_topology, numatune)
+
+    def test_get_guest_memory_backing_config_large_success(self):
+        host_topology = objects.NUMATopology(
+            cells=[
+                objects.NUMACell(
+                    id=3, cpuset=set([1]), memory=1024, mempages=[
+                        objects.NUMAPagesTopology(size_kb=4, total=2000,
+                                                  used=0),
+                        objects.NUMAPagesTopology(size_kb=2048, total=512,
+                                                  used=0),
+                        objects.NUMAPagesTopology(size_kb=1048576, total=0,
+                                                  used=0),
+                    ])])
+        inst_topology = objects.InstanceNUMATopology(cells=[
+            objects.InstanceNUMACell(
+                id=3, cpuset=set([0, 1]), memory=1024, pagesize=2048)])
+
+        numa_tune = vconfig.LibvirtConfigGuestNUMATune()
+        numa_tune.memnodes = [vconfig.LibvirtConfigGuestNUMATuneMemNode()]
+        numa_tune.memnodes[0].cellid = 0
+        numa_tune.memnodes[0].nodeset = [3]
+
+        result = self._test_get_guest_memory_backing_config(
+            host_topology, inst_topology, numa_tune)
+        self.assertEqual(1, len(result.hugepages))
+        self.assertEqual(2048, result.hugepages[0].size_kb)
+        self.assertEqual([0], result.hugepages[0].nodeset)
+
     def test_get_guest_config_numa_host_instance_fit_w_cpu_pinset(self):
         instance_ref = db.instance_create(self.context, self.test_instance)
         flavor = objects.Flavor(memory_mb=1024, vcpus=2, root_gb=496,
@@ -1329,10 +1365,12 @@ class LibvirtConnTestCase(test.TestCase):
     def test_get_guest_config_numa_host_instance_topo(self):
         instance_topology = objects.InstanceNUMATopology(
                     cells=[objects.InstanceNUMACell(
-                        id=1, cpuset=set([0, 1]), memory=1024),
+                        id=1, cpuset=set([0, 1]), memory=1024, pagesize=None),
                            objects.InstanceNUMACell(
-                        id=2, cpuset=set([2, 3]), memory=1024)])
+                        id=2, cpuset=set([2, 3]), memory=1024,
+                               pagesize=None)])
         instance_ref = db.instance_create(self.context, self.test_instance)
+        instance_ref.numa_topology = instance_topology
         flavor = objects.Flavor(memory_mb=2048, vcpus=4, root_gb=496,
                                 ephemeral_gb=8128, swap=33550336, name='fake',
                                 extra_specs={})

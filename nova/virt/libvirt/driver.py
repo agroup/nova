@@ -3807,6 +3807,36 @@ class LibvirtDriver(driver.ComputeDriver):
             else:
                 return allowed_cpus, None, guest_cpu_numa_config, None
 
+    def _get_guest_memory_backing_config(self, inst_topology, numatune):
+        host_topology = self._get_host_numa_topology()
+
+        membacking = None
+        if inst_topology and host_topology:
+            # Currently libvirt does not support the smallest
+            # pagesize set as a backend memory.
+            # https://bugzilla.redhat.com/show_bug.cgi?id=1173507
+            avail_pagesize = [page.size_kb
+                              for page in host_topology.cells[0].mempages]
+            avail_pagesize.sort()
+            smallest = avail_pagesize[0]
+
+            pages = []
+            for guest_cellid, inst_cell in enumerate(inst_topology.cells):
+                if inst_cell.pagesize and inst_cell.pagesize > smallest:
+                    for memnode in numatune.memnodes:
+                        if guest_cellid == memnode.cellid:
+                            page = (
+                                vconfig.LibvirtConfigGuestMemoryBackingPage())
+                            page.nodeset = [guest_cellid]
+                            page.size_kb = inst_cell.pagesize
+                            pages.append(page)
+                            break  # Quit early...
+            if pages:
+                membacking = vconfig.LibvirtConfigGuestMemoryBacking()
+                membacking.hugepages = pages
+
+        return membacking
+
     def _get_guest_config(self, instance, network_info, image_meta,
                           disk_info, rescue=None, block_device_info=None,
                           context=None):
@@ -3844,6 +3874,9 @@ class LibvirtDriver(driver.ComputeDriver):
         guest.cpuset = cpuset
         guest.cputune = cputune
         guest.numatune = guest_numa_tune
+
+        guest.membacking = self._get_guest_memory_backing_config(
+            instance.numa_topology, guest_numa_tune)
 
         guest.metadata.append(self._get_guest_config_meta(context,
                                                           instance,
