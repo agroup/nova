@@ -8004,12 +8004,12 @@ class LibvirtConnTestCase(test.TestCase):
             cpu_0.id = 2 * i
             cpu_0.socket_id = i
             cpu_0.core_id = 0
-            cpu_0.siblings = [2 * i, 2 * i + 1]
+            cpu_0.siblings = set([2 * i, 2 * i + 1])
             cpu_1 = vconfig.LibvirtConfigCapsNUMACPU()
             cpu_1.id = 2 * i + 1
             cpu_1.socket_id = i
             cpu_1.core_id = 1
-            cpu_1.siblings = [2 * i, 2 * i + 1]
+            cpu_1.siblings = set([2 * i, 2 * i + 1])
             cell.cpus = [cpu_0, cpu_1]
             topology.cells.append(cell)
 
@@ -8043,8 +8043,13 @@ class LibvirtConnTestCase(test.TestCase):
                 ):
             got_topo = conn._get_host_numa_topology()
             got_topo_dict = got_topo._to_dict()
-            self.assertThat(
-                    expected_topo_dict, matchers.DictMatches(got_topo_dict))
+            self.assertEqual(expected_topo_dict, got_topo_dict)
+            self.assertEqual(set([]), got_topo.cells[0].pinned_cpus)
+            self.assertEqual(set([]), got_topo.cells[1].pinned_cpus)
+            self.assertEqual(set([]), got_topo.cells[2].pinned_cpus)
+            self.assertEqual(set([]), got_topo.cells[3].pinned_cpus)
+            self.assertEqual([set([0, 1])], got_topo.cells[0].siblings)
+            self.assertEqual([], got_topo.cells[1].siblings)
 
     def test_get_host_numa_topology_empty(self):
         caps = vconfig.LibvirtConfigCaps()
