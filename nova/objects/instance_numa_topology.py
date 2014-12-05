@@ -188,3 +188,6 @@ class InstanceNUMATopology(base.NovaObject):
         return cls(cells=[
             InstanceNUMACell._from_dict(cell_dict)
             for cell_dict in data_dict.get('cells', [])])
+
+    def cpu_pinning_requested(self):
+        return all(bool(cell.cpu_pinning) for cell in self.cells)

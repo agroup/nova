@@ -11,6 +11,7 @@
 #    under the License.
 
 
+from nova import exception
 from nova import objects
 from nova.tests.objects import test_objects
 
@@ -32,7 +33,7 @@ class _TestNUMA(object):
 
         self.assertEqual(d1, d2)
 
-    def test_pinning_logic(self):
+    def test_free_cpus(self):
         obj = objects.NUMATopology(cells=[
             objects.NUMACell(
                 id=0, cpuset=set([1, 2]), memory=512,
@@ -46,6 +47,21 @@ class _TestNUMA(object):
         )
         self.assertEqual(set([2]), obj.cells[0].free_cpus)
         self.assertEqual(set([3, 4]), obj.cells[1].free_cpus)
+
+    def test_pinning_logic(self):
+        numacell = objects.NUMACell(id=0, cpuset=set([1, 2, 3, 4]), memory=512,
+                                    cpu_usage=2, memory_usage=256,
+                                    pinned_cpus=set([1]))
+        numacell.pin_cpus(set([2, 3]))
+        self.assertEqual(set([4]), numacell.free_cpus)
+        self.assertRaises(exception.CPUPinningInvalid,
+                          numacell.pin_cpus, set([1, 4]))
+        self.assertRaises(exception.CPUPinningInvalid,
+                          numacell.pin_cpus, set([1, 6]))
+        self.assertRaises(exception.CPUPinningInvalid,
+                          numacell.unpin_cpus, set([1, 4]))
+        numacell.unpin_cpus(set([1, 2, 3]))
+        self.assertEqual(set([1, 2, 3, 4]), numacell.free_cpus)
 
 
 class TestNUMA(test_objects._LocalTest,

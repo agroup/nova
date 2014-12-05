@@ -1755,3 +1755,8 @@ class InvalidHypervisorVirtType(Invalid):
 
 class InvalidVirtualMachineMode(Invalid):
     msg_fmt = _("Virtual machine mode '%(vmmode)s' is not recognised")
+
+
+class CPUPinningInvalid(Invalid):
+    msg_fmt = _("Cannot pin/unpin cpus %(requested)s from the following "
+                "pinned set %(pinned)s")

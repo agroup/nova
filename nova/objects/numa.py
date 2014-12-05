@@ -12,6 +12,8 @@
 #    License for the specific language governing permissions and limitations
 #    under the License.
 
+
+from nova import exception
 from nova.objects import base
 from nova.objects import fields
 from nova.openstack.common import jsonutils
@@ -43,6 +45,18 @@ class NUMACell(base.NovaObject):
     @property
     def free_cpus(self):
         return self.cpuset - self.pinned_cpus or set()
+
+    def pin_cpus(self, cpus):
+        if self.pinned_cpus & cpus:
+            raise exception.CPUPinningInvalid(requested=list(cpus),
+                                              pinned=list(self.pinned_cpus))
+        self.pinned_cpus |= cpus
+
+    def unpin_cpus(self, cpus):
+        if (self.pinned_cpus & cpus) != cpus:
+            raise exception.CPUPinningInvalid(requested=list(cpus),
+                                              pinned=list(self.pinned_cpus))
+        self.pinned_cpus -= cpus
 
     def _to_dict(self):
         return {
