@@ -3366,18 +3366,20 @@ class LibvirtDriver(driver.ComputeDriver):
 
         return cpu
 
-    def _get_guest_cpu_config(self, flavor, image, guest_cpu_numa):
+    def _get_guest_cpu_config(self, flavor, image,
+                              guest_cpu_numa_config, instance_numa_topology):
         cpu = self._get_guest_cpu_model_config()
 
         if cpu is None:
             return None
 
-        topology = hardware.get_best_cpu_topology(flavor, image)
+        topology = hardware.get_best_cpu_topology(
+                flavor, image, numa_topology=instance_numa_topology)
 
         cpu.sockets = topology.sockets
         cpu.cores = topology.cores
         cpu.threads = topology.threads
-        cpu.numa = guest_cpu_numa
+        cpu.numa = guest_cpu_numa_config
 
         return cpu
 
@@ -3793,7 +3795,7 @@ class LibvirtDriver(driver.ComputeDriver):
                         int(flavor.extra_specs[key]))
 
         guest.cpu = self._get_guest_cpu_config(
-                flavor, image_meta, guest_cpu_numa)
+                flavor, image_meta, guest_cpu_numa, instance_numa_topology)
 
         if 'root' in disk_mapping:
             root_device_name = block_device.prepend_dev(
