@@ -958,6 +958,35 @@ def _numa_get_constraints_auto(nodes, flavor, image_meta):
     return objects.InstanceNUMATopology(cells=cells)
 
 
+def _add_cpu_pinning_constraint(flavor, image_meta, numa_topology):
+    flavor_pinning = flavor.get('extra_specs', {}).get("hw:cpu_policy")
+    image_pinning = image_meta.get("hw_cpu_policy")
+    if flavor_pinning == "dedicated":
+        requested = True
+    elif flavor_pinning == "shared":
+        if image_pinning == "dedicated":
+            raise exception.ImageCPUPinningForbidden()
+        requested = False
+    else:
+        requested = image_pinning == "dedicated"
+
+    if not requested:
+        return numa_topology
+
+    if numa_topology:
+        # NOTE(ndipanov) Setting the cpu_pinning attribute to a non-None value
+        # means CPU pinning was requested
+        for cell in numa_topology.cells:
+            cell.cpu_pinning = {}
+        return numa_topology
+    else:
+        single_cell = objects.InstanceNUMACell(
+                id=0, cpuset=set(range(flavor['vcpus'])),
+                memory=flavor['memory_mb'], cpu_pinning={})
+        numa_topology = objects.InstanceNUMATopology(cells=[single_cell])
+        return numa_topology
+
+
 # TODO(sahid): Move numa related to hardward/numa.py
 def numa_get_constraints(flavor, image_meta):
     """Return topology related to input request
@@ -971,7 +1000,7 @@ def numa_get_constraints(flavor, image_meta):
         flavor, image_meta, "numa_nodes")
 
     if nodes is None:
-        return None
+        return _add_cpu_pinning_constraint(flavor, image_meta, None)
 
     nodes = int(nodes)
 
@@ -982,11 +1011,13 @@ def numa_get_constraints(flavor, image_meta):
         flavor, image_meta, "numa_cpus.0") is None
 
     if auto:
-        return _numa_get_constraints_auto(
+        numa_topology = _numa_get_constraints_auto(
             nodes, flavor, image_meta)
     else:
-        return _numa_get_constraints_manual(
+        numa_topology = _numa_get_constraints_manual(
             nodes, flavor, image_meta)
+
+    return _add_cpu_pinning_constraint(flavor, image_meta, numa_topology)
 
 
 class VirtNUMALimitTopology(VirtNUMATopology):

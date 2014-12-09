@@ -1760,3 +1760,8 @@ class InvalidVirtualMachineMode(Invalid):
 class CPUPinningInvalid(Invalid):
     msg_fmt = _("Cannot pin/unpin cpus %(requested)s from the following "
                 "pinned set %(pinned)s")
+
+
+class ImageCPUPinningForbidden(Invalid):
+    msg_fmt = _("Image property 'hw_cpu_policy' is not permitted to override "
+                "CPU pinning policy set against the flavor")
