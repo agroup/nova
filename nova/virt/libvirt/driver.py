@@ -30,6 +30,7 @@ import errno
 import functools
 import glob
 import mmap
+import operator
 import os
 import random
 import shutil
@@ -3727,15 +3728,28 @@ class LibvirtDriver(driver.ComputeDriver):
                 # Now get the CpuTune configuration from the numa_topology
                 guest_cpu_tune = vconfig.LibvirtConfigGuestCPUTune()
                 for host_cell in topology.cells:
-                    for guest_config_cell in guest_cpu_numa_config.cells:
+                    for guest_node_id, guest_config_cell in enumerate(
+                            guest_cpu_numa_config.cells):
                         if guest_config_cell.id == host_cell.id:
+                            object_numa_cell = (
+                                    instance_numa_topology.cells[guest_node_id]
+                                )
                             for cpu in guest_config_cell.cpus:
                                 pin_cpuset = (
                                     vconfig.LibvirtConfigGuestCPUTuneVCPUPin())
                                 pin_cpuset.id = cpu
-                                pin_cpuset.cpuset = host_cell.cpuset
+                                # If there is pinning information in the cell
+                                # we pin to individual CPUs, otherwise we float
+                                # over the whole host NUMA node
+                                if object_numa_cell.cpu_pinning:
+                                    pcpu = object_numa_cell.cpu_pinning[cpu]
+                                    pin_cpuset.cpuset = set([pcpu])
+                                else:
+                                    pin_cpuset.cpuset = host_cell.cpuset
                                 guest_cpu_tune.vcpupin.append(pin_cpuset)
 
+                # Sort the vcpupin list per vCPU id for human-friendlier XML
+                guest_cpu_tune.vcpupin.sort(key=operator.attrgetter("id"))
                 for i, cell in enumerate(guest_cpu_numa_config.cells):
                     cell.id = i
 
