@@ -297,9 +297,9 @@ class ComputeAPI(object):
 
     def _check_live_migration_api_version(self, server):
         # NOTE(angdraug): live migration involving a compute host running Nova
-        # API older than v3.32 as either source or destination can cause
+        # API older than v3.23.1 as either source or destination can cause
         # instance disks to be deleted from shared storage
-        if not self.client.can_send_version('3.32'):
+        if not self.client.can_send_version('3.23.1'):
             raise exception.LiveMigrationWithOldNovaNotSafe(server=server)
 
     def add_aggregate_host(self, ctxt, aggregate, host_param, host,
