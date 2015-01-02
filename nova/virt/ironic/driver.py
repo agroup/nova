@@ -20,12 +20,16 @@
 A driver wrapping the Ironic API, such that Nova may provision
 bare metal resources.
 """
+import gzip
+import base64
 import logging as py_logging
+import tempfile
 import time
 
 from oslo.config import cfg
 import six
 
+from nova.api.metadata import base as instance_metadata
 from nova.compute import arch
 from nova.compute import hvtype
 from nova.compute import power_state
@@ -35,6 +39,7 @@ from nova import context as nova_context
 from nova import exception
 from nova.i18n import _
 from nova.i18n import _LE
+from nova.i18n import _LI
 from nova.i18n import _LW
 from nova import objects
 from nova.openstack.common import excutils
@@ -42,6 +47,7 @@ from nova.openstack.common import importutils
 from nova.openstack.common import jsonutils
 from nova.openstack.common import log as logging
 from nova.openstack.common import loopingcall
+from nova.virt import configdrive
 from nova.virt import driver as virt_driver
 from nova.virt import firewall
 from nova.virt.ironic import client_wrapper
@@ -579,6 +585,57 @@ class IronicDriver(virt_driver.ComputeDriver):
         ports = icli.call("node.list_ports", node.uuid)
         return set([p.address for p in ports])
 
+    def _generate_configdrive(self, instance, node, network_info,
+                              extra_md=None, files=None):
+        """Generate a config drive.
+
+        :param instance: The instance object.
+        :param node: The node object.
+        :param network_info: Instance network information. Ignored by
+                             this driver.
+        :param extra_md: Optional, extra metadata to be added to the
+                         configdrive.
+        :param files: Optional, a list of paths to files to be added to
+                      the configdrive.
+
+        """
+        if not extra_md:
+            extra_md = {}
+
+        i_meta = instance_metadata.InstanceMetadata(instance,
+            content=files, extra_md=extra_md, network_info=network_info)
+
+        with tempfile.NamedTemporaryFile() as uncompressed:
+            with tempfile.NamedTemporaryFile() as compressed:
+
+                with configdrive.ConfigDriveBuilder(instance_md=i_meta) as cdb:
+                    cdb.make_drive(uncompressed.name)
+
+                # Compress file
+                uncompressed.seek(0)
+                g = gzip.GzipFile(fileobj=compressed, mode='wb')
+                g.writelines(uncompressed.readlines())
+                g.close()
+
+                compressed.seek(0)
+                encoded_configdrive = base64.b64encode(compressed.read())
+
+                # TODO(lucasagomes): Add support to upload the configdrive
+                # to Swift
+
+                ironicclient = client_wrapper.IronicClientWrapper()
+                patch = [{'op': 'add', 'path': '/instance_info/configdrive',
+                          'value': encoded_configdrive}]
+                try:
+                    ironicclient.call('node.update', node.uuid, patch)
+                except ironic.exc.BadRequest:
+                    with excutils.save_and_reraise_exception():
+                        LOG.error(_LE("Failed to set the configdrive on node "
+                                      "%(node)s when provisioning the "
+                                      "instance %(instance)s"),
+                                      {'node': node.uuid,
+                                       'instance': instance['uuid']})
+
     def spawn(self, context, instance, image_meta, injected_files,
               admin_password, network_info=None, block_device_info=None):
         """Deploy an instance.
@@ -641,6 +698,19 @@ class IronicDriver(virt_driver.ComputeDriver):
                           {'instance': instance['uuid'],
                            'node': node_uuid})
                 self._cleanup_deploy(context, node, instance, network_info)
+
+        # Config drive
+        if configdrive.required_by(instance):
+            extra_md = {}
+            if admin_password:
+                extra_md['admin_pass'] = admin_password
+
+            self._generate_configdrive(instance, node, network_info,
+                                       extra_md=extra_md)
+
+            LOG.info(_LI("Config drive for instance %(instance)s on "
+                         "baremetal node %(node)s created."),
+                         {'instance': instance['uuid'], 'node': node_uuid})
 
         # trigger the node deploy
         try:
