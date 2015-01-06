@@ -551,14 +551,13 @@ class IronicDriverTestCase(test.NoDBTestCase):
     @mock.patch.object(ironic_driver.IronicDriver, '_start_firewall')
     def _test_spawn(self, mock_sf, mock_pvifs, mock_adf, mock_wait_active,
                     mock_fg_bid, mock_node, mock_looping, mock_save):
-        node_uuid = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee'
-        node = ironic_utils.get_test_node(driver='fake', uuid=node_uuid)
-        instance = fake_instance.fake_instance_obj(self.ctx, node=node_uuid)
+        instance = fake_instance.fake_instance_obj(self.ctx,
+                                                   node=self.node.uuid)
         fake_flavor = {'ephemeral_gb': 0}
 
-        mock_node.get.return_value = node
+        mock_node.get.return_value = self.node
         mock_node.validate.return_value = ironic_utils.get_test_validation()
-        mock_node.get_by_instance_uuid.return_value = node
+        mock_node.get_by_instance_uuid.return_value = self.node
         mock_node.set_provision_state.return_value = mock.MagicMock()
         mock_fg_bid.return_value = fake_flavor
 
@@ -567,14 +566,15 @@ class IronicDriverTestCase(test.NoDBTestCase):
 
         self.driver.spawn(self.ctx, instance, None, [], None)
 
-        mock_node.get.assert_called_once_with(node_uuid)
-        mock_node.validate.assert_called_once_with(node_uuid)
+        mock_node.get.assert_called_once_with(self.node.uuid)
+        mock_node.validate.assert_called_once_with(self.node.uuid)
         mock_fg_bid.assert_called_once_with(self.ctx,
                                             instance.instance_type_id)
-        mock_adf.assert_called_once_with(node, instance, None, fake_flavor)
-        mock_pvifs.assert_called_once_with(node, instance, None)
+        mock_adf.assert_called_once_with(self.node, instance, None,
+                                         fake_flavor)
+        mock_pvifs.assert_called_once_with(self.node, instance, None)
         mock_sf.assert_called_once_with(instance, None)
-        mock_node.set_provision_state.assert_called_once_with(node_uuid,
+        mock_node.set_provision_state.assert_called_once_with(self.node.uuid,
                                                               'active')
 
         self.assertIsNone(instance.default_ephemeral_device)
@@ -591,6 +591,8 @@ class IronicDriverTestCase(test.NoDBTestCase):
     @mock.patch.object(configdrive, 'required_by')
     def test_spawn(self, mock_required_by, mock_configdrive):
         mock_required_by.return_value = False
+        self.node = ironic_utils.get_test_node(driver='fake',
+                                               uuid=uuidutils.generate_uuid())
         self._test_spawn()
         # assert configdrive was not generated
         self.assertFalse(mock_configdrive.called)
@@ -599,10 +601,13 @@ class IronicDriverTestCase(test.NoDBTestCase):
     @mock.patch.object(configdrive, 'required_by')
     def test_spawn_with_configdrive(self, mock_required_by, mock_configdrive):
         mock_required_by.return_value = True
+        self.node = ironic_utils.get_test_node(driver='fake',
+                                               uuid=uuidutils.generate_uuid())
+        self.node.extra['configdrive_metadata'] = {'foo': 'bar'}
         self._test_spawn()
         # assert configdrive was generated
         mock_configdrive.assert_called_once_with(mock.ANY, mock.ANY, mock.ANY,
-                                                 extra_md={})
+                                                 extra_md={'foo': 'bar'})
 
     @mock.patch.object(configdrive, 'required_by')
     @mock.patch.object(loopingcall, 'FixedIntervalLoopingCall')
@@ -1328,10 +1333,12 @@ class IronicDriverGenerateConfigDriveTestCase(test.NoDBTestCase):
         mock_make_drive = mock.MagicMock(make_drive=lambda *_: None)
         mock_cd_builder.return_value.__enter__.return_value = mock_make_drive
         self.driver._generate_configdrive(self.instance, self.node,
-                                          self.network_info)
+                                          self.network_info,
+                                          extra_md={'foo': 'bar'})
         mock_cd_builder.assert_called_once_with(instance_md='fake-instance')
-        mock_instance_meta.assert_called_once_with(self.instance,
-            network_info=self.network_info, extra_md={}, content=None)
+        mock_instance_meta.assert_called_once_with(
+            self.instance, network_info=self.network_info,
+            extra_md={'foo': 'bar'}, content=None)
         mock_update.assert_called_once_with(self.node.uuid, mock.ANY)
 
     def test_generate_configdrive_badrequest(self, mock_cd_builder,

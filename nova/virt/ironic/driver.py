@@ -705,6 +705,10 @@ class IronicDriver(virt_driver.ComputeDriver):
             if admin_password:
                 extra_md['admin_pass'] = admin_password
 
+            node_extra_md = node.extra.get('configdrive_metadata')
+            if node_extra_md:
+                extra_md.update(node_extra_md)
+
             self._generate_configdrive(instance, node, network_info,
                                        extra_md=extra_md)
 
