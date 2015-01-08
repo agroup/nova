@@ -354,7 +354,11 @@ class ComputeAPI(object):
     def check_can_live_migrate_destination(self, ctxt, instance, destination,
                                            block_migration, disk_over_commit):
         self._check_live_migration_api_version(destination)
-        cctxt = self.client.prepare(server=destination, version='3.32')
+        if self.client.can_send_version('3.32'):
+            version = '3.32'
+        else:
+            version = '3.23.1'
+        cctxt = self.client.prepare(server=destination, version=version)
         return cctxt.call(ctxt, 'check_can_live_migrate_destination',
                           instance=instance,
                           block_migration=block_migration,
@@ -363,7 +367,11 @@ class ComputeAPI(object):
     def check_can_live_migrate_source(self, ctxt, instance, dest_check_data):
         source = _compute_host(None, instance)
         self._check_live_migration_api_version(source)
-        cctxt = self.client.prepare(server=source, version='3.32')
+        if self.client.can_send_version('3.32'):
+            version = '3.32'
+        else:
+            version = '3.23.1'
+        cctxt = self.client.prepare(server=source, version=version)
         return cctxt.call(ctxt, 'check_can_live_migrate_source',
                           instance=instance,
                           dest_check_data=dest_check_data)
@@ -685,7 +693,11 @@ class ComputeAPI(object):
                                                destroy_disks=True,
                                                migrate_data=None):
         self._check_live_migration_api_version(host)
-        cctxt = self.client.prepare(server=host, version='3.32')
+        if self.client.can_send_version('3.32'):
+            version = '3.32'
+        else:
+            version = '3.23.1'
+        cctxt = self.client.prepare(server=host, version=version)
         cctxt.cast(ctxt, 'rollback_live_migration_at_destination',
                    instance=instance,
                    destroy_disks=destroy_disks, migrate_data=migrate_data)
