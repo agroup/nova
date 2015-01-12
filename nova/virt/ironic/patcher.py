@@ -81,6 +81,11 @@ class GenericDriverFields(object):
             patch.append({'path': '/instance_info/preserve_ephemeral',
                           'op': 'add', 'value': str(preserve_ephemeral)})
 
+        # Check for localboot
+        if flavor['extra_specs'].get('baremetal:localboot'):
+            patch.append({'path': '/instance_info/localboot',
+                          'op': 'add', 'value': True})
+
         return patch
 
     def get_cleanup_patch(self, instance, network_info, flavor):
@@ -140,7 +145,6 @@ class PXEDriverFields(GenericDriverFields):
         for key, value in self._get_kernel_ramdisk_dict(flavor).items():
             patch.append({'path': '/driver_info/%s' % key,
                           'op': 'add', 'value': value})
-
         return patch
 
     def get_cleanup_patch(self, instance, network_info, flavor):
