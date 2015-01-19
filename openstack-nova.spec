@@ -6,7 +6,7 @@
 
 Name:             openstack-nova
 Version:          2014.2.1
-Release:          1%{?dist}
+Release:          1.1.patched%{?dist}
 Summary:          OpenStack Compute (nova)
 
 Group:            Applications/System
@@ -45,6 +45,9 @@ Source30:         openstack-nova-novncproxy.sysconfig
 #
 Patch0001: 0001-remove-runtime-dep-on-python-pbr.patch
 Patch0002: 0002-Move-notification-point-to-a-better-place.patch
+Patch0003: 0003-adds-confidrive-support.patch
+Patch0004: 0004-extra-configdrive-metadata-from-nodes.patch
+Patch0005: 0005-check-for-localboot.patch
 
 BuildArch:        noarch
 BuildRequires:    intltool
@@ -449,6 +452,9 @@ This package contains documentation files for nova.
 
 %patch0001 -p1
 %patch0002 -p1
+%patch0003 -p1
+%patch0004 -p1
+%patch0005 -p1
 
 find . \( -name .gitignore -o -name .placeholder \) -delete
 
